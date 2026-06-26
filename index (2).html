@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bücher — a shelf for the books you keep</title>
+<meta name="description" content="A small, private reading tracker. Your books live in your browser. No account, no server.">
+<style>
+:root{
+  --ink:#15101c; --ink-2:#1d1626; --ink-3:#271d33;
+  --line:rgba(242,233,216,.10); --line-2:rgba(242,233,216,.16);
+  --paper:#f2e9d8; --paper-2:rgba(242,233,216,.66); --paper-3:rgba(242,233,216,.40);
+  --amber:#e8a23d; --amber-dim:rgba(232,162,61,.16);
+  --rose:#d07a72; --green:#a6c489;
+  --font-title:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --font-ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --maxw:1180px; --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--ink); color:var(--paper); font-family:var(--font-ui);
+  font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(120% 80% at 50% -10%, #1c1426 0%, var(--ink) 60%);
+  min-height:100vh; padding-bottom:64px;
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+:focus-visible{outline:2px solid var(--amber); outline-offset:2px; border-radius:4px}
+.muted{color:var(--paper-2)}
+.linklike{background:none;border:none;color:var(--amber);padding:0;font:inherit;text-decoration:underline;text-underline-offset:2px}
+.fatal{max-width:560px;margin:18vh auto;padding:0 24px;text-align:center;color:var(--paper-2);line-height:1.7}
+
+/* ---- layout ---- */
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+
+/* ---- header ---- */
+.masthead{padding:40px 0 14px}
+.brand{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap}
+.wordmark{font-family:var(--font-title); font-size:40px; letter-spacing:.01em; font-weight:600; line-height:1}
+.wordmark .dotacc{color:var(--amber)}
+.tagline{font-family:var(--font-mono); font-size:12.5px; letter-spacing:.04em; color:var(--paper-3); text-transform:lowercase}
+
+/* ---- demo banner ---- */
+.demo-banner{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  margin:14px 0 0; padding:11px 16px; border-radius:var(--r);
+  background:linear-gradient(0deg,var(--amber-dim),var(--amber-dim)), var(--ink-2);
+  border:1px solid rgba(232,162,61,.28); font-size:14px;
+}
+.demo-banner .bdot{width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-dim);flex:none}
+.demo-banner .btext{flex:1 1 280px;color:var(--paper-2)}
+.demo-banner .btext b{color:var(--paper)}
+.demo-banner .bbtns{display:flex;gap:8px;flex:none}
+
+/* ---- toolbar ---- */
+.toolbar{
+  position:sticky; top:0; z-index:30; background:rgba(21,16,28,.86);
+  backdrop-filter:saturate(140%) blur(10px); border-bottom:1px solid var(--line);
+  margin-top:18px;
+}
+.toolbar-inner{display:flex; align-items:center; gap:12px; padding:12px 0; flex-wrap:wrap}
+.filters{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.fpill{
+  white-space:nowrap; padding:7px 13px; border-radius:999px; font-size:13px;
+  background:transparent; border:1px solid var(--line-2); color:var(--paper-2);
+  transition:background .15s,color .15s,border-color .15s;
+}
+.fpill:hover{border-color:var(--paper-3);color:var(--paper)}
+.fpill.on{background:var(--paper); border-color:var(--paper); color:#1a1422; font-weight:600}
+.search{
+  flex:1 1 180px; min-width:140px; display:flex; align-items:center; gap:8px;
+  padding:8px 12px; background:var(--ink-2); border:1px solid var(--line-2); border-radius:999px;
+}
+.search svg{flex:none;color:var(--paper-3)}
+.search input{flex:1; background:none; border:none; color:var(--paper); font:inherit; outline:none}
+.search input::placeholder{color:var(--paper-3)}
+.tbtn{
+  display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+  padding:8px 14px; border-radius:999px; font-size:13.5px; font-weight:600;
+  background:var(--ink-2); border:1px solid var(--line-2); color:var(--paper);
+  transition:background .15s,border-color .15s;
+}
+.tbtn:hover{background:var(--ink-3); border-color:var(--paper-3)}
+.tbtn.primary{background:var(--amber); border-color:var(--amber); color:#1a1206}
+.tbtn.primary:hover{filter:brightness(1.06)}
+.tbtn.ghost{background:transparent}
+.tbtn svg{flex:none}
+
+/* ---- shelves ---- */
+.shelves{padding:30px 0 6px}
+.shelf{margin-bottom:30px}
+.shelf-head{display:flex; align-items:center; gap:12px; margin:0 0 13px}
+.eyebrow{
+  font-family:var(--font-mono); font-size:12.5px; font-weight:600; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--paper); margin:0;
+}
+.shelf-count{font-family:var(--font-mono); font-size:11px; color:var(--paper-3); padding-top:1px}
+.shelf-head::after{content:""; flex:1; height:1px; background:var(--line)}
+.shelf-row{
+  display:flex; gap:16px; overflow-x:auto; padding:4px 2px 14px; scroll-snap-type:x proximity;
+  scrollbar-width:thin; scrollbar-color:var(--ink-3) transparent;
+}
+.shelf-row::-webkit-scrollbar{height:8px}
+.shelf-row::-webkit-scrollbar-thumb{background:var(--ink-3);border-radius:999px}
+.scard{flex:0 0 140px; scroll-snap-align:start; position:relative}
+.scard .cover{margin-bottom:9px}
+.scard-body .title{font-family:var(--font-title); font-size:14.5px; line-height:1.25; margin:0; font-weight:600}
+.scard-body .author{font-size:12px; color:var(--paper-2); margin:2px 0 6px}
+
+/* ---- grid ---- */
+.grid-section{padding:26px 0 0}
+.section-head{display:flex; align-items:baseline; gap:12px; margin:0 0 16px}
+.section-head h2{font-family:var(--font-mono); font-size:12.5px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; margin:0}
+.section-head .count{font-family:var(--font-mono); font-size:11px; color:var(--paper-3)}
+.section-head::after{content:""; flex:1; height:1px; background:var(--line)}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:24px 18px}
+.empty{padding:40px 0 60px; color:var(--paper-2); font-size:15px}
+
+/* ---- card ---- */
+.card{position:relative}
+.card .cover{margin-bottom:11px}
+.card-body .title{font-family:var(--font-title); font-size:16px; line-height:1.25; margin:0; font-weight:600}
+.card-body .author{font-size:12.5px; color:var(--paper-2); margin:3px 0 7px}
+.meta{display:flex; align-items:center; gap:7px; flex-wrap:wrap; font-family:var(--font-mono); font-size:11.5px; color:var(--paper-2)}
+.meta .dot{color:var(--paper-3)}
+.rating{color:var(--amber); letter-spacing:1px}
+.rating .empty{color:var(--paper-3)}
+.rating.none{color:var(--paper-3)}
+
+/* ---- status pill ---- */
+.pill{
+  display:inline-block; font-family:var(--font-mono); font-size:10px; font-weight:600;
+  letter-spacing:.09em; text-transform:uppercase; padding:3px 8px; border-radius:999px;
+  border:1px solid transparent;
+}
+.st-reading{color:var(--amber); background:var(--amber-dim); border-color:rgba(232,162,61,.3)}
+.st-read{color:var(--green); background:rgba(166,196,137,.12); border-color:rgba(166,196,137,.28)}
+.st-tbr{color:var(--paper-2); background:rgba(242,233,216,.06); border-color:var(--line-2)}
+.st-dnf{color:var(--rose); background:rgba(208,122,114,.12); border-color:rgba(208,122,114,.3)}
+.scard-body .pill{margin-top:2px}
+
+/* ---- cover + typographic placeholder ---- */
+.cover{
+  position:relative; aspect-ratio:2/3; width:100%; border-radius:7px; overflow:hidden;
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 10px 22px -14px rgba(0,0,0,.7);
+}
+.cover::after{content:""; position:absolute; inset:0; border-radius:7px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.07); pointer-events:none}
+.cover-type{
+  position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center;
+  align-items:center; text-align:center; padding:16px 14px; gap:7px;
+}
+.cover-type::before{
+  content:attr(data-genre); position:absolute; top:11px; left:0; right:0; text-align:center;
+  font-family:var(--font-mono); font-size:8.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:rgba(242,233,216,.45);
+}
+.ct-title{font-family:var(--font-title); font-weight:600; font-size:18px; line-height:1.16; color:#f5ecdb;
+  text-shadow:0 1px 2px rgba(0,0,0,.35); max-height:5.2em; overflow:hidden}
+.ct-author{font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:rgba(242,233,216,.62)}
+.cover-img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .35s; background:transparent}
+.cover-img.loaded{opacity:1}
+
+/* genre-keyed cover fields (dusk palette) */
+.cg-0{background:#3a2f50}.cg-1{background:#4a2f3a}.cg-2{background:#2f4046}.cg-3{background:#4a402a}
+.cg-4{background:#3a2d2a}.cg-5{background:#2f3a50}.cg-6{background:#43314a}.cg-7{background:#294a3f}
+
+/* ---- hover-revealed actions (touch: always visible) ---- */
+.actions{position:absolute; top:8px; right:8px; display:flex; gap:6px; opacity:0; transform:translateY(-3px); transition:opacity .15s,transform .15s; z-index:2}
+.card:hover .actions, .card:focus-within .actions, .scard:hover .actions, .scard:focus-within .actions{opacity:1; transform:none}
+.act{
+  display:grid; place-items:center; width:28px; height:28px; border-radius:7px;
+  background:rgba(21,16,28,.78); border:1px solid var(--line-2); color:var(--paper);
+  backdrop-filter:blur(4px);
+}
+.act:hover{background:var(--ink); border-color:var(--paper-3)}
+@media (hover:none){ .actions{opacity:1; transform:none} }
+
+/* ---- modal ---- */
+.modal{position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:18px;
+  background:rgba(8,5,12,.66); backdrop-filter:blur(3px)}
+.modal[hidden]{display:none}
+.sheet{
+  width:100%; max-width:560px; max-height:90vh; overflow:auto; background:var(--ink-2);
+  border:1px solid var(--line-2); border-radius:16px; padding:22px 22px 20px;
+  box-shadow:0 30px 80px -30px rgba(0,0,0,.85);
+}
+.sheet-head{display:flex; align-items:center; justify-content:space-between; margin:0 0 16px}
+.sheet-head h2{font-family:var(--font-title); font-size:22px; margin:0; font-weight:600}
+.iclose{width:32px;height:32px;border-radius:8px;background:transparent;border:1px solid var(--line-2);color:var(--paper-2);display:grid;place-items:center;font-size:18px;line-height:1}
+.iclose:hover{color:var(--paper);border-color:var(--paper-3)}
+.fgrid{display:grid; grid-template-columns:1fr 1fr; gap:13px 14px}
+.field{display:flex; flex-direction:column; gap:5px}
+.field.col-2{grid-column:1 / -1}
+.field label{font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--paper-2)}
+.field input, .field select, .field textarea{
+  background:var(--ink); border:1px solid var(--line-2); border-radius:8px; color:var(--paper);
+  font:inherit; padding:9px 11px; outline:none; width:100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus{border-color:var(--amber)}
+.field textarea{resize:vertical; min-height:64px}
+.field input[type=date]{color-scheme:dark}
+.form-error{grid-column:1/-1; color:var(--rose); font-size:13px; margin-top:2px}
+.sheet-foot{display:flex; justify-content:flex-end; gap:10px; margin-top:18px}
+
+/* import */
+.import-text{width:100%; min-height:140px; background:var(--ink); border:1px solid var(--line-2); border-radius:10px;
+  color:var(--paper); font-family:var(--font-mono); font-size:13px; padding:12px; resize:vertical; outline:none}
+.import-text:focus{border-color:var(--amber)}
+.import-help{font-size:13px; color:var(--paper-2); margin:9px 0 4px; line-height:1.55}
+.import-file{font-size:13px; color:var(--paper-2); margin:6px 0 4px}
+.ptable-wrap{max-height:260px; overflow:auto; border:1px solid var(--line); border-radius:9px; margin-top:8px}
+.ptable{width:100%; border-collapse:collapse; font-size:13px}
+.ptable th{position:sticky; top:0; background:var(--ink-3); text-align:left; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--paper-2); padding:7px 10px}
+.ptable td{padding:7px 10px; border-top:1px solid var(--line); color:var(--paper)}
+
+/* footer */
+.mode-foot{max-width:var(--maxw); margin:34px auto 0; padding:18px 24px 0; border-top:1px solid var(--line); font-size:13px; color:var(--paper-3)}
+
+/* toast */
+.toast{position:fixed; left:50%; bottom:26px; transform:translate(-50%,16px); z-index:80;
+  background:var(--paper); color:#1a1422; font-size:14px; font-weight:600; padding:11px 18px;
+  border-radius:999px; box-shadow:0 16px 40px -16px rgba(0,0,0,.7); opacity:0; pointer-events:none;
+  transition:opacity .2s, transform .2s; max-width:90vw}
+.toast.show{opacity:1; transform:translate(-50%,0)}
+
+@media (max-width:560px){
+  .masthead{padding:28px 0 8px}
+  .wordmark{font-size:32px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:20px 14px}
+  .fgrid{grid-template-columns:1fr}
+  .toolbar-inner{gap:9px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important; scroll-behavior:auto !important}
+  .cover-img{opacity:1}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead wrap">
+  <div class="brand">
+    <span class="wordmark">Bücher<span class="dotacc">.</span></span>
+    <span class="tagline">a shelf for the books you keep</span>
+  </div>
+  <div id="demoBanner" class="demo-banner" hidden>
+    <span class="bdot"></span>
+    <span class="btext"><b>You're browsing a sample shelf.</b> Add, edit, or delete anything — it's saved only in this browser, and nobody else sees it.</span>
+    <span class="bbtns">
+      <button class="tbtn ghost" id="resetBtn" hidden>Reset sample</button>
+      <button class="tbtn primary" id="startOwnBtn">Start my own &rarr;</button>
+    </span>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-inner wrap">
+    <div class="filters" id="filters" role="group" aria-label="Filter by status">
+      <button class="fpill on" data-filter="all" aria-pressed="true">All</button>
+      <button class="fpill" data-filter="reading" aria-pressed="false">Reading</button>
+      <button class="fpill" data-filter="read" aria-pressed="false">Read</button>
+      <button class="fpill" data-filter="tbr" aria-pressed="false">To read</button>
+      <button class="fpill" data-filter="dnf" aria-pressed="false">DNF</button>
+    </div>
+    <label class="search">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="search" placeholder="Search title, author, shelf…" aria-label="Search books">
+    </label>
+    <button class="tbtn primary" id="addBtn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add book</button>
+    <button class="tbtn" id="importBtn"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Import</button>
+    <button class="tbtn ghost" id="exportCsvBtn">Export CSV</button>
+    <button class="tbtn ghost" id="exportJsonBtn">Export JSON</button>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="shelves" id="shelvesSection" hidden>
+    <div id="shelves"></div>
+  </section>
+
+  <section class="grid-section">
+    <div class="section-head"><h2>All books</h2><span class="count" id="gridCount">0</span></div>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="emptyState" hidden></div>
+  </section>
+</main>
+
+<div class="mode-foot wrap" id="modeFooter"></div>
+
+<!-- book modal -->
+<div class="modal" id="bookModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="sheet-head"><h2 id="modalTitle">Add a book</h2><button class="iclose" id="cancelBtn" aria-label="Close">&times;</button></div>
+    <form onsubmit="return false">
+      <div class="fgrid">
+        <div class="field col-2"><label for="f-title">Title</label><input id="f-title" name="title" type="text" autocomplete="off"></div>
+        <div class="field col-2"><label for="f-author">Author</label><input id="f-author" name="author" type="text" autocomplete="off"></div>
+        <div class="field"><label for="f-status">Status</label>
+          <select id="f-status" name="status">
+            <option value="tbr">To read</option>
+            <option value="reading">Reading</option>
+            <option value="read">Read</option>
+            <option value="dnf">DNF</option>
+          </select>
+        </div>
+        <div class="field"><label for="f-rating">Rating</label>
+          <select id="f-rating" name="rating">
+            <option value="">—</option><option value="1">1</option><option value="2">2</option>
+            <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+        <div class="field"><label for="f-started">Started</label><input id="f-started" name="started" type="date"></div>
+        <div class="field"><label for="f-finished">Finished</label><input id="f-finished" name="finished" type="date"></div>
+        <div class="field"><label for="f-year_pub">Year published</label><input id="f-year_pub" name="year_pub" type="text" inputmode="numeric" autocomplete="off"></div>
+        <div class="field"><label for="f-isbn">ISBN</label><input id="f-isbn" name="isbn" type="text" autocomplete="off" placeholder="lights up the cover"></div>
+        <div class="field"><label for="f-genre">Genre</label><input id="f-genre" name="genre" type="text" autocomplete="off"></div>
+        <div class="field"><label for="f-carousel">Shelves</label><input id="f-carousel" name="carousel" type="text" autocomplete="off" placeholder="comma, separated"></div>
+        <div class="field col-2"><label for="f-cover_override">Cover URL (optional)</label><input id="f-cover_override" name="cover_override" type="url" autocomplete="off" placeholder="https://…"></div>
+        <div class="field col-2"><label for="f-notes">Notes</label><textarea id="f-notes" name="notes"></textarea></div>
+        <p class="form-error" id="formError" hidden></p>
+      </div>
+      <div class="sheet-foot">
+        <button type="button" class="tbtn ghost" id="cancelBtn2" onclick="document.getElementById('cancelBtn').click()">Cancel</button>
+        <button type="button" class="tbtn primary" id="saveBtn">Add book</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- import modal -->
+<div class="modal" id="importModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+    <div class="sheet-head"><h2 id="importTitle">Import books</h2><button class="iclose" id="importCancel" aria-label="Close">&times;</button></div>
+    <p class="import-help">Paste a <b>CSV</b>, <b>TSV</b>, a <b>Markdown table</b>, or just one book per line (<span class="muted">Title — Author</span>). Duplicates are skipped automatically.</p>
+    <textarea class="import-text" id="importText" placeholder="The Secret History — Donna Tartt&#10;Just Kids — Patti Smith&#10;…or paste a spreadsheet / markdown table"></textarea>
+    <p class="import-file">…or choose a file: <input id="importFile" type="file" accept=".csv,.tsv,.txt,.md,.markdown"></p>
+    <div id="importPreview"></div>
+    <div class="sheet-foot">
+      <button type="button" class="tbtn ghost" id="importCancel2" onclick="document.getElementById('importCancel').click()">Cancel</button>
+      <button type="button" class="tbtn primary" id="importAdd" disabled>Add books</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ============================================================================
+   Buche core — pure logic, no DOM, no globals.
+   Identical source runs in Node (tests) and in the browser (single-file app).
+   Schema is CANONICAL and id-first. Do not reorder.
+   ========================================================================== */
+
+var SCHEMA = ['id','title','author','isbn','status','rating','started','finished',
+              'notes','cover_override','year_pub','genre','carousel'];
+
+/* ---- tiny string helpers ---- */
+function s(v){ return (v === null || v === undefined) ? '' : String(v); }
+function trimStr(v){ return s(v).trim(); }
+function collapseWS(v){ return s(v).replace(/\s+/g, ' ').trim(); }
+
+/* ---- status: canonical reading|read|tbr|dnf, forgiving on input ---- */
+function normalizeStatus(raw){
+  var k = collapseWS(raw).toLowerCase().replace(/[-_]+/g, ' ');
+  if (k === '') return 'tbr';
+  var READ    = ['read','finished','done','complete','completed'];
+  var READING = ['reading','currently reading','in progress','started'];
+  var TBR     = ['tbr','to read','want to read','wishlist','unread','to be read'];
+  var DNF     = ['dnf','abandoned','did not finish','gave up','dropped'];
+  if (READ.indexOf(k)    !== -1) return 'read';
+  if (READING.indexOf(k) !== -1) return 'reading';
+  if (TBR.indexOf(k)     !== -1) return 'tbr';
+  if (DNF.indexOf(k)     !== -1) return 'dnf';
+  // loose contains-checks for messy exports
+  if (/\bdnf\b|abandon|did not finish/.test(k)) return 'dnf';
+  if (/current|in progress|reading/.test(k))    return 'reading';
+  if (/finish|\bdone\b|complete|\bread\b/.test(k)) return 'read';
+  if (/want|wish|to read|unread/.test(k))        return 'tbr';
+  return 'tbr';
+}
+
+/* ---- rating: int 1..5 or '' ---- */
+function normalizeRating(raw){
+  var t = trimStr(raw);
+  if (t === '') return '';
+  var stars = (t.match(/[★]/g) || []).length;
+  var n = stars > 0 ? stars : parseFloat(t);
+  if (isNaN(n)) return '';
+  n = Math.round(n);
+  if (n < 1) return '';
+  if (n > 5) n = 5;
+  return n;
+}
+
+/* ---- dates: store YYYY-MM-DD; accept YYYY-MM-DD, M/YYYY, YYYY, M/D/YYYY ---- */
+function pad2(n){ n = String(n); return n.length < 2 ? '0' + n : n; }
+function normalizeDate(raw){
+  var t = trimStr(raw);
+  if (t === '') return '';
+  var m;
+  // already ISO (YYYY-MM-DD)
+  m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return m[1] + '-' + pad2(m[2]) + '-' + pad2(m[3]);
+  // YYYY/MM/DD
+  m = t.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  if (m) return m[1] + '-' + pad2(m[2]) + '-' + pad2(m[3]);
+  // M/D/YYYY
+  m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return m[3] + '-' + pad2(m[1]) + '-' + pad2(m[2]);
+  // M/YYYY -> first of month
+  m = t.match(/^(\d{1,2})\/(\d{4})$/);
+  if (m) return m[2] + '-' + pad2(m[1]) + '-01';
+  // YYYY -> Jan 1
+  m = t.match(/^(\d{4})$/);
+  if (m) return m[1] + '-01-01';
+  return ''; // unrecognized -> keep field canonical
+}
+
+/* ---- ISBN normalize: strip junk; discard unrecoverable float artifacts ---- */
+function normalizeISBN(raw){
+  var t = trimStr(raw);
+  if (t === '') return '';
+  // strip spreadsheet guards: ="..."  or leading =, surrounding quotes
+  t = t.replace(/^=/, '').replace(/^"+|"+$/g, '').trim();
+  // float-coercion artifact (e.g. 9.78E+12) — precision is gone, cannot trust
+  if (/^\d(?:\.\d+)?e[+-]?\d+$/i.test(t)) return '';
+  // keep only ISBN-legal characters
+  t = t.replace(/[^0-9Xx]/g, '').toUpperCase();
+  if (t.length === 10 || t.length === 13) return t;
+  return '';
+}
+
+/* ---- ISBN-13 (978-) <-> ISBN-10 conversion with check digits ---- */
+function isbn13to10(isbn13){
+  var t = normalizeISBN(isbn13);
+  if (t.length !== 13 || t.slice(0,3) !== '978') return '';
+  var core = t.slice(3, 12); // 9 digits
+  var sum = 0;
+  for (var i = 0; i < 9; i++) sum += (10 - i) * parseInt(core[i], 10);
+  var check = (11 - (sum % 11)) % 11;
+  return core + (check === 10 ? 'X' : String(check));
+}
+function isbn10to13(isbn10){
+  var t = normalizeISBN(isbn10);
+  if (t.length !== 10) return '';
+  var core = '978' + t.slice(0, 9); // 12 digits
+  var sum = 0;
+  for (var i = 0; i < 12; i++) sum += (i % 2 === 0 ? 1 : 3) * parseInt(core[i], 10);
+  var check = (10 - (sum % 10)) % 10;
+  return core + String(check);
+}
+
+/* ---- dedup key: lowercase(title)|lowercase(author), whitespace-collapsed ---- */
+function dedupKey(title, author){
+  return collapseWS(s(title)).toLowerCase() + '|' + collapseWS(s(author)).toLowerCase();
+}
+
+/* ---- carousel multi-tag: comma-separated -> trimmed array (and back) ---- */
+function parseCarousels(raw){
+  return s(raw).split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+}
+function serializeCarousels(arr){
+  if (!arr) return '';
+  return arr.map(function(x){ return s(x).trim(); }).filter(Boolean).join(', ');
+}
+
+/* ---- ids: opaque stable bNNN; never reused (callers persist a high-water) ---- */
+function formatId(n){ return 'b' + String(n).padStart(3, '0'); }
+function maxIdNum(ids){
+  var max = -1;
+  (ids || []).forEach(function(id){
+    var m = String(id).match(/^b(\d+)$/);
+    if (m){ var n = parseInt(m[1], 10); if (n > max) max = n; }
+  });
+  return max;
+}
+
+/* ---- cover cascade: ordered candidate URLs (empty => text placeholder) ----
+   Open Library only (Google Books returns 200 + gray GIF on miss, which would
+   stall the <img> onerror cascade on an ugly box). default=false forces a 404. */
+function olCover(isbn){
+  return 'https://covers.openlibrary.org/b/isbn/' + isbn + '-M.jpg?default=false';
+}
+function coverCandidates(book){
+  var out = [];
+  var isbn = normalizeISBN(book && book.isbn);
+  if (isbn.length === 13){
+    out.push(olCover(isbn));
+    var ten = isbn13to10(isbn);
+    if (ten) out.push(olCover(ten));
+  } else if (isbn.length === 10){
+    out.push(olCover(isbn));
+    var thirteen = isbn10to13(isbn);
+    if (thirteen) out.push(olCover(thirteen));
+  }
+  var ov = trimStr(book && book.cover_override);
+  if (ov){
+    if (/^http:\/\//i.test(ov)) ov = ov.replace(/^http:\/\//i, 'https://'); // upgrade
+    out.push(ov);
+  }
+  // de-dup while preserving order
+  var seen = {}, uniq = [];
+  out.forEach(function(u){ if (!seen[u]){ seen[u] = 1; uniq.push(u); } });
+  return uniq;
+}
+
+/* ============================================================================
+   Import parsing: CSV / TSV / Markdown table / plain list -> book objects
+   ========================================================================== */
+
+/* RFC-style CSV with quotes, escaped "", and newlines inside quotes. */
+function parseCSV(text, delim){
+  delim = delim || ',';
+  var rows = [], row = [], field = '', i = 0, inQ = false;
+  text = s(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  while (i < text.length){
+    var c = text[i];
+    if (inQ){
+      if (c === '"'){
+        if (text[i+1] === '"'){ field += '"'; i += 2; continue; }
+        inQ = false; i++; continue;
+      }
+      field += c; i++; continue;
+    }
+    if (c === '"'){ inQ = true; i++; continue; }
+    if (c === delim){ row.push(field); field = ''; i++; continue; }
+    if (c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+    field += c; i++;
+  }
+  row.push(field); rows.push(row);
+  // drop trailing fully-empty row
+  if (rows.length && rows[rows.length-1].length === 1 && rows[rows.length-1][0] === '') rows.pop();
+  return rows;
+}
+
+function parseMarkdownTable(text){
+  var lines = s(text).split(/\n/).map(function(l){ return l.trim(); })
+                     .filter(function(l){ return l.indexOf('|') !== -1; });
+  var rows = [];
+  lines.forEach(function(line){
+    if (/^\|?\s*:?-{2,}/.test(line.replace(/\s/g,'')) || /^[\s|:-]+$/.test(line)) return; // separator
+    var cells = line.replace(/^\|/, '').replace(/\|$/, '').split('|')
+                    .map(function(c){ return c.trim(); });
+    rows.push(cells);
+  });
+  return rows;
+}
+
+/* header text -> schema field */
+var HEADER_ALIASES = {
+  'id':'id',
+  'title':'title','book':'title','name':'title','book title':'title',
+  'author':'author','authors':'author','by':'author','writer':'author',
+  'isbn':'isbn','isbn13':'isbn','isbn-13':'isbn','isbn 13':'isbn','isbn10':'isbn','isbn-10':'isbn',
+  'status':'status','shelf':'status','exclusive shelf':'status','reading status':'status',
+  'rating':'rating','my rating':'rating','rate':'rating','stars':'rating','score':'rating',
+  'started':'started','date started':'started','start':'started','started reading':'started',
+  'finished':'finished','date finished':'finished','date read':'finished','finished reading':'finished','read on':'finished',
+  'notes':'notes','note':'notes','review':'notes','my review':'notes','comment':'notes','comments':'notes',
+  'cover':'cover_override','cover_override':'cover_override','cover url':'cover_override','image':'cover_override','image url':'cover_override',
+  'year':'year_pub','year_pub':'year_pub','year published':'year_pub','published':'year_pub','pub year':'year_pub','original publication year':'year_pub',
+  'genre':'genre','genres':'genre','category':'genre','categories':'genre','subject':'genre',
+  'carousel':'carousel','carousels':'carousel','tag':'carousel','tags':'carousel','bookshelves':'carousel','shelves':'carousel','collection':'carousel'
+};
+function mapHeader(h){
+  var key = collapseWS(h).toLowerCase();
+  return HEADER_ALIASES[key] || null;
+}
+
+/* rows (first row = header) -> array of partial book objects */
+function rowsToObjects(rows){
+  if (!rows || rows.length < 1) return [];
+  var header = rows[0].map(mapHeader);
+  var out = [];
+  for (var r = 1; r < rows.length; r++){
+    var cells = rows[r];
+    if (!cells.length || cells.every(function(c){ return trimStr(c) === ''; })) continue;
+    var obj = {};
+    for (var c = 0; c < header.length; c++){
+      var field = header[c];
+      if (!field) continue;
+      var val = trimStr(cells[c]);
+      // year_pub may arrive as a full date in some exports; keep just the year
+      if (field === 'year_pub'){ var ym = val.match(/(\d{4})/); val = ym ? ym[1] : ''; }
+      if (val !== '' || obj[field] === undefined) obj[field] = val;
+    }
+    if (obj.title) out.push(obj);
+  }
+  return out;
+}
+
+/* plain list: one book per line. "Title — Author" / "Title by Author" / "Title" */
+function parsePlainList(text){
+  var out = [];
+  s(text).split(/\n/).forEach(function(line){
+    var t = line.trim();
+    if (t === '') return;
+    t = t.replace(/^[-*+]\s+/, '');   // strip "- " / "* " unordered-list markers
+    t = t.replace(/^\d+[.)]\s+/, ''); // strip "1. " ordered-list markers
+    if (t === '') return;
+    var title = t, author = '';
+    var m = t.split(/\s+[—–]\s+| - | by /i); // em/en dash, " - ", " by "
+    if (m.length >= 2){ title = m[0].trim(); author = m.slice(1).join(' ').trim(); }
+    if (title) out.push({ title: title, author: author });
+  });
+  return out;
+}
+
+function detectFormat(text){
+  var raw = s(text);
+  var lines = raw.split(/\n/).filter(function(l){ return l.trim() !== ''; });
+  var hasPipeSep = lines.some(function(l){ return /\|/.test(l); }) &&
+                   lines.some(function(l){ return /^\|?[\s:|-]*-{2,}[\s:|-]*\|?$/.test(l.trim()); });
+  if (hasPipeSep) return 'markdown';
+  if (raw.indexOf('\t') !== -1) return 'tsv';
+  var first = lines[0] || '';
+  var commaCols = first.split(',').length;
+  if (commaCols >= 2 && /title|author|isbn|book/i.test(first)) return 'csv';
+  if (commaCols >= 3) return 'csv';
+  return 'list';
+}
+
+/* normalize a raw partial object into a full schema row (no id yet) */
+function normalizeBook(obj){
+  return {
+    id: '',
+    title: collapseWS(obj.title),
+    author: collapseWS(obj.author),
+    isbn: normalizeISBN(obj.isbn),
+    status: normalizeStatus(obj.status),
+    rating: normalizeRating(obj.rating),
+    started: normalizeDate(obj.started),
+    finished: normalizeDate(obj.finished),
+    notes: trimStr(obj.notes),
+    cover_override: trimStr(obj.cover_override),
+    year_pub: trimStr(obj.year_pub),
+    genre: collapseWS(obj.genre),
+    carousel: serializeCarousels(parseCarousels(obj.carousel))
+  };
+}
+
+/* Full import pipeline. Returns { added, skipped, nextHighWater }.
+   - existingBooks: current rows (for dedup)
+   - highWater: persisted max id number ever issued (-1 if none) */
+function importBooks(text, existingBooks, highWater){
+  existingBooks = existingBooks || [];
+  if (highWater === undefined || highWater === null) highWater = -1;
+  var fmt = detectFormat(text);
+  var raw;
+  if (fmt === 'markdown') raw = rowsToObjects(parseMarkdownTable(text));
+  else if (fmt === 'tsv')  raw = rowsToObjects(parseCSV(text, '\t'));
+  else if (fmt === 'csv')  raw = rowsToObjects(parseCSV(text, ','));
+  else                     raw = parsePlainList(text);
+
+  var existingKeys = {};
+  existingBooks.forEach(function(b){ existingKeys[dedupKey(b.title, b.author)] = true; });
+
+  var nextNum = Math.max(highWater, maxIdNum(existingBooks.map(function(b){ return b.id; }))) + 1;
+  var batchKeys = {}, added = [], skipped = [];
+
+  raw.forEach(function(obj){
+    var book = normalizeBook(obj);
+    if (!book.title){ skipped.push({ row: obj, reason: 'no title' }); return; }
+    var key = dedupKey(book.title, book.author);
+    if (existingKeys[key]){ skipped.push({ row: book, reason: 'already in library' }); return; }
+    if (batchKeys[key]){ skipped.push({ row: book, reason: 'duplicate in import' }); return; }
+    batchKeys[key] = true;
+    book.id = formatId(nextNum++);
+    added.push(book);
+  });
+
+  return { added: added, skipped: skipped, format: fmt, nextHighWater: nextNum - 1 };
+}
+
+/* ---- export ---- */
+function escapeCSV(v){
+  var t = s(v);
+  if (/[",\n]/.test(t)) return '"' + t.replace(/"/g, '""') + '"';
+  return t;
+}
+function toCSV(books){
+  var lines = [SCHEMA.join(',')];
+  books.forEach(function(b){
+    lines.push(SCHEMA.map(function(f){ return escapeCSV(b[f]); }).join(','));
+  });
+  return lines.join('\n');
+}
+
+/* expose to Node test harness; harmless no-op in the browser */
+if (typeof module !== 'undefined' && module.exports){
+  module.exports = {
+    SCHEMA: SCHEMA, normalizeStatus: normalizeStatus, normalizeRating: normalizeRating,
+    normalizeDate: normalizeDate, normalizeISBN: normalizeISBN,
+    isbn13to10: isbn13to10, isbn10to13: isbn10to13, dedupKey: dedupKey,
+    parseCarousels: parseCarousels, serializeCarousels: serializeCarousels,
+    formatId: formatId, maxIdNum: maxIdNum, coverCandidates: coverCandidates,
+    parseCSV: parseCSV, parseMarkdownTable: parseMarkdownTable, rowsToObjects: rowsToObjects,
+    parsePlainList: parsePlainList, detectFormat: detectFormat,
+    normalizeBook: normalizeBook, importBooks: importBooks, toCSV: toCSV
+  };
+}
+
+/* ============================================================================
+   Buche UI + storage adapters. Depends on the pure core (SCHEMA, normalizeBook,
+   coverCandidates, importBooks, toCSV, formatId, maxIdNum, parseCarousels,
+   serializeCarousels) which is concatenated above this block in the built file.
+   ========================================================================== */
+
+/* ---- sample data for the demo. New Yorker summer picks carry real ISBNs
+        (sourced from a bookseller catalog), so their covers load from Open
+        Library; the sales titles have no sourced ISBN and render as designed
+        typographic covers until an ISBN or cover_override is added. ---- */
+var SEED = [
+  {id:'b000',title:'Cassandra at the Wedding',author:'Dorothy Baker',isbn:'9781590176016',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Anna Wiener',cover_override:'',year_pub:'',genre:'Literary Fiction',carousel:'Vacation Reads'},
+  {id:'b001',title:'Eros the Bittersweet',author:'Anne Carson',isbn:'9781628973860',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Julian Lucas',cover_override:'',year_pub:'',genre:'Essays',carousel:'Vacation Reads'},
+  {id:'b002',title:'Everybody Was So Young: Gerald and Sara Murphy, a Lost Generation Love Story',author:'Amanda Vaill',isbn:'9780767903707',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Rachel Syme',cover_override:'',year_pub:'',genre:'Biography',carousel:'Vacation Reads'},
+  {id:'b003',title:'Brotherless Night',author:'V. V. Ganeshananthan',isbn:'9780812997156',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Nathan Heller',cover_override:'',year_pub:'',genre:'Historical Fiction',carousel:'Vacation Reads'},
+  {id:'b004',title:'Sudden Death',author:'Álvaro Enrigue',isbn:'9780735213449',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Louisa Thomas',cover_override:'',year_pub:'',genre:'Literary Fiction',carousel:'Vacation Reads'},
+  {id:'b005',title:'Seating Arrangements',author:'Maggie Shipstead',isbn:'9780307743954',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Heidi Blake',cover_override:'',year_pub:'',genre:'Literary Fiction',carousel:'Vacation Reads'},
+  {id:'b006',title:'The Best and the Brightest',author:'David Halberstam',isbn:'9780449908709',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Susan B. Glasser',cover_override:'',year_pub:'',genre:'History',carousel:'Vacation Reads'},
+  {id:'b007',title:'The Female Complaint: The Unfinished Business of Sentimentality in American Culture',author:'Lauren Berlant',isbn:'9780822342021',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Lauren Michele Jackson',cover_override:'',year_pub:'',genre:'Cultural Criticism',carousel:'Vacation Reads'},
+  {id:'b008',title:'Orlando Furioso',author:'Ludovico Ariosto',isbn:'9780199540389',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Merve Emre',cover_override:'',year_pub:'',genre:'Poetry',carousel:'Vacation Reads'},
+  {id:'b009',title:'Wave: A Memoir',author:'Sonali Deraniyagala',isbn:'9780345804310',status:'tbr',rating:'',started:'',finished:'',notes:'New Yorker summer pick — Rachel Aviv',cover_override:'',year_pub:'',genre:'Memoir',carousel:'Vacation Reads'},
+  {id:'b010',title:'Never Split the Difference',author:'Chris Voss',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'12 mentions',cover_override:'',year_pub:'',genre:'Negotiation',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b011',title:'How to Win Friends and Influence People',author:'Dale Carnegie',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'11 mentions',cover_override:'',year_pub:'',genre:'People Skills',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b012',title:'Fanatical Prospecting',author:'Jeb Blount',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'7 mentions',cover_override:'',year_pub:'',genre:'Prospecting',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b013',title:'Gap Selling',author:'Keenan',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'7 mentions',cover_override:'',year_pub:'',genre:'Sales Methodology',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b014',title:'Influence',author:'Robert Cialdini',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'7 mentions',cover_override:'',year_pub:'',genre:'Psychology/Persuasion',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b015',title:'The Challenger Sale',author:'Matthew Dixon & Brent Adamson',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'7 mentions',cover_override:'',year_pub:'',genre:'B2B Sales',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b016',title:'SPIN Selling',author:'Neil Rackham',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'5 mentions',cover_override:'',year_pub:'',genre:'Sales Methodology',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b017',title:'The Greatest Salesman in the World',author:'Og Mandino',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'4 mentions',cover_override:'',year_pub:'',genre:'Sales Mindset',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b018',title:'To Sell Is Human',author:'Daniel H. Pink',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'4 mentions',cover_override:'',year_pub:'',genre:'Sales/Persuasion',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b019',title:'Atomic Habits',author:'James Clear',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'3 mentions',cover_override:'',year_pub:'',genre:'Habits/Productivity',carousel:'Kade\'s List, Most Recommended'},
+  {id:'b020',title:'Extreme Ownership',author:'Jocko Willink & Leif Babin',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'3 mentions',cover_override:'',year_pub:'',genre:'Leadership',carousel:'Kade\'s List'},
+  {id:'b021',title:'Let\'s Get Real or Let\'s Not Play',author:'Mahan Khalsa & Randy Illig',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'3 mentions',cover_override:'',year_pub:'',genre:'Consultative Sales',carousel:'Kade\'s List'},
+  {id:'b022',title:'Start with Why',author:'Simon Sinek',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'3 mentions',cover_override:'',year_pub:'',genre:'Sales / Related',carousel:'Kade\'s List'},
+  {id:'b023',title:'The Go-Giver',author:'Bob Burg & John David Mann',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'3 mentions',cover_override:'',year_pub:'',genre:'Relationship Sales',carousel:'Kade\'s List'},
+  {id:'b024',title:'The Psychology of Selling',author:'Brian Tracy',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'3 mentions',cover_override:'',year_pub:'',genre:'Sales Psychology',carousel:'Kade\'s List'},
+  {id:'b025',title:'Think and Grow Rich',author:'Napoleon Hill',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'3 mentions',cover_override:'',year_pub:'',genre:'Success/Mindset',carousel:'Kade\'s List'},
+  {id:'b026',title:'Gap Prospecting',author:'Keenan',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'2 mentions',cover_override:'',year_pub:'',genre:'Sales / Related',carousel:'Kade\'s List'},
+  {id:'b027',title:'Getting to Yes',author:'Roger Fisher and William Ury',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'2 mentions',cover_override:'',year_pub:'',genre:'Sales / Related',carousel:'Kade\'s List'},
+  {id:'b028',title:'Sell or Be Sold',author:'Grant Cardone',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'2 mentions',cover_override:'',year_pub:'',genre:'Sales / Related',carousel:'Kade\'s List'},
+  {id:'b029',title:'The Chimp Paradox',author:'Steve Peters',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'2 mentions',cover_override:'',year_pub:'',genre:'Sales / Related',carousel:'Kade\'s List'},
+  {id:'b030',title:'The Little Red Book of Selling',author:'Jeffrey Gitomer',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'2 mentions',cover_override:'',year_pub:'',genre:'Sales Fundamentals',carousel:'Kade\'s List'},
+  {id:'b031',title:'The Transparency Sale',author:'Todd Caponi',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'2 mentions',cover_override:'',year_pub:'',genre:'Sales Methodology',carousel:'Kade\'s List'},
+  {id:'b032',title:'Way of the Wolf',author:'Jordan Belfort',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'2 mentions',cover_override:'',year_pub:'',genre:'Sales / Related',carousel:'Kade\'s List'},
+  {id:'b033',title:'$100M Offers',author:'Alex Hormozi',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'1 mention',cover_override:'',year_pub:'',genre:'Offers/Marketing',carousel:'Kade\'s List'},
+  {id:'b034',title:'177 Mental Toughness Secrets of the World Class',author:'Steve Siebold',isbn:'',status:'tbr',rating:'',started:'',finished:'',notes:'1 mention',cover_override:'',year_pub:'',genre:'Mindset',carousel:'Kade\'s List'}
+];
+
+var STATUS_LABEL = { reading:'Reading', read:'Read', tbr:'To read', dnf:'DNF' };
+var FILTER_ORDER = ['all','reading','read','tbr','dnf'];
+
+/* ============================================================================
+   IndexedDB plumbing
+   ========================================================================== */
+var DB_NAME = 'buche_v2', DB_VERSION = 1;
+var STORES = ['app', 'demo'];
+var _dbPromise = null;
+
+function openDB(){
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise(function(resolve, reject){
+    var req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = function(e){
+      var db = e.target.result;
+      STORES.forEach(function(name){
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath:'id' });
+      });
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath:'k' });
+    };
+    req.onsuccess = function(){ resolve(req.result); };
+    req.onerror   = function(){ reject(req.error); };
+  });
+  return _dbPromise;
+}
+function tx(store, mode){
+  return openDB().then(function(db){
+    return db.transaction(store, mode).objectStore(store);
+  });
+}
+function idbAll(store){
+  return tx(store, 'readonly').then(function(os){
+    return new Promise(function(res, rej){
+      var r = os.getAll(); r.onsuccess = function(){ res(r.result || []); }; r.onerror = function(){ rej(r.error); };
+    });
+  });
+}
+function idbPut(store, value){
+  return tx(store, 'readwrite').then(function(os){
+    return new Promise(function(res, rej){
+      var r = os.put(value); r.onsuccess = function(){ res(value); }; r.onerror = function(){ rej(r.error); };
+    });
+  });
+}
+function idbDelete(store, key){
+  return tx(store, 'readwrite').then(function(os){
+    return new Promise(function(res, rej){
+      var r = os.delete(key); r.onsuccess = function(){ res(); }; r.onerror = function(){ rej(r.error); };
+    });
+  });
+}
+function idbClear(store){
+  return tx(store, 'readwrite').then(function(os){
+    return new Promise(function(res, rej){
+      var r = os.clear(); r.onsuccess = function(){ res(); }; r.onerror = function(){ rej(r.error); };
+    });
+  });
+}
+function getMeta(k){
+  return tx('meta', 'readonly').then(function(os){
+    return new Promise(function(res, rej){
+      var r = os.get(k); r.onsuccess = function(){ res(r.result ? r.result.v : null); }; r.onerror = function(){ rej(r.error); };
+    });
+  });
+}
+function setMeta(k, v){ return idbPut('meta', { k:k, v:v }); }
+
+/* ---- Adapter contract (a SheetsAdapter / MarkdownAdapter could implement the
+   same four methods and drop straight into the renderer below) ----
+     load()        -> Promise<[book]>
+     save(book)    -> Promise<book>     // insert or update by id
+     remove(id)    -> Promise<void>
+     replaceAll(b) -> Promise<void>     // wipe + reseed (used by demo reset)        */
+function IndexedDBAdapter(storeName){
+  return {
+    storeName: storeName,
+    load:       function(){ return idbAll(storeName); },
+    save:       function(book){ return idbPut(storeName, book); },
+    remove:     function(id){ return idbDelete(storeName, id); },
+    replaceAll: function(books){
+      return idbClear(storeName).then(function(){
+        return Promise.all(books.map(function(b){ return idbPut(storeName, b); }));
+      });
+    }
+  };
+}
+
+/* ============================================================================
+   App state
+   ========================================================================== */
+var MODE = 'app';            // 'demo' | 'app'
+var store = null;            // active adapter
+var BOOKS = [];              // in-memory source of truth
+var HIGH_WATER = -1;         // max id number ever issued (persisted per store)
+var FILTER = 'all';
+var QUERY = '';
+var EDIT_ID = null;          // id being edited, or null when adding
+var IMPORT_RESULT = null;    // pending importBooks() result awaiting confirm
+
+function $(sel){ return document.querySelector(sel); }
+function el(tag, cls, html){ var e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; }
+function escapeHTML(str){
+  return (str === null || str === undefined ? '' : String(str))
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function seqKey(){ return 'seq:' + MODE; }
+
+/* ============================================================================
+   Boot
+   ========================================================================== */
+function boot(){
+  openDB().then(function(){ return getMeta('mode'); }).then(function(savedMode){
+    MODE = savedMode || (SEED.length ? 'demo' : 'app');
+    if (MODE === 'demo'){
+      return getMeta('demoSeeded').then(function(seeded){
+        if (!seeded){
+          return IndexedDBAdapter('demo').replaceAll(SEED)
+            .then(function(){ return setMeta('demoSeeded', true); })
+            .then(function(){ return setMeta('seq:demo', maxIdNum(SEED.map(function(b){return b.id;}))); });
+        }
+      });
+    }
+  }).then(function(){
+    store = IndexedDBAdapter(MODE);
+    return store.load();
+  }).then(function(books){
+    BOOKS = books;
+    return getMeta(seqKey());
+  }).then(function(hw){
+    HIGH_WATER = (hw === null || hw === undefined) ? maxIdNum(BOOKS.map(function(b){ return b.id; })) : hw;
+    applyModeChrome();
+    wireEvents();
+    render();
+  }).catch(function(err){
+    document.body.innerHTML = '<div class="fatal">Buche couldn\'t open local storage in this browser.<br>'
+      + 'If you opened this file directly, try a private window or host it (any static host works).<br><small>'
+      + escapeHTML(err && err.message ? err.message : String(err)) + '</small></div>';
+  });
+}
+
+function applyModeChrome(){
+  var banner = $('#demoBanner'), resetBtn = $('#resetBtn'), footer = $('#modeFooter');
+  if (MODE === 'demo'){
+    banner.hidden = false;
+    resetBtn.hidden = false;
+    footer.innerHTML = '';
+  } else {
+    banner.hidden = true;
+    resetBtn.hidden = true;
+    footer.innerHTML = SEED.length
+      ? 'Want to see the sample shelf again? <button class="linklike" id="viewDemo">View the demo</button>'
+      : '';
+    var vd = $('#viewDemo');
+    if (vd) vd.addEventListener('click', function(){ setMeta('mode','demo').then(function(){ location.reload(); }); });
+  }
+}
+
+/* ============================================================================
+   Rendering
+   ========================================================================== */
+var COVER_CLASSES = 8; // .cg-0 .. .cg-7 defined in CSS
+function genreClass(b){
+  var str = ((b && b.genre) || (b && b.title) || 'unknown').toLowerCase();
+  var h = 0; for (var i = 0; i < str.length; i++){ h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+  return 'cg-' + (h % COVER_CLASSES);
+}
+function stars(rating){
+  var n = parseInt(rating, 10);
+  if (!n || n < 1) return '<span class="rating none">—</span>';
+  var full = '★★★★★'.slice(0, n), empty = '·····'.slice(0, 5 - n);
+  return '<span class="rating">' + full + '<span class="empty">' + empty + '</span></span>';
+}
+function metaLine(b){
+  var bits = [];
+  if (b.year_pub) bits.push('<span class="yr">' + escapeHTML(b.year_pub) + '</span>');
+  bits.push(stars(b.rating));
+  return bits.join('<span class="dot">·</span>');
+}
+function pill(status){
+  return '<span class="pill st-' + status + '">' + (STATUS_LABEL[status] || status) + '</span>';
+}
+function coverInner(b){
+  // typographic placeholder; an <img> (if any candidates) overlays it when it loads
+  var cls = genreClass(b);
+  var cands = coverCandidates(b);
+  var img = '';
+  if (cands.length){
+    img = '<img class="cover-img" alt="" loading="lazy" src="' + escapeHTML(cands[0]) + '"'
+        + ' data-cands="' + escapeHTML(JSON.stringify(cands)) + '" data-idx="0"'
+        + ' onerror="advanceCover(this)" onload="this.classList.add(\'loaded\')">';
+  }
+  return '<div class="cover ' + cls + '" role="img" aria-label="' + escapeHTML(b.title) + '">'
+       +   '<div class="cover-type" data-genre="' + escapeHTML(b.genre || '') + '"><span class="ct-title">' + escapeHTML(b.title) + '</span>'
+       +   '<span class="ct-author">' + escapeHTML(b.author || '\u00A0') + '</span></div>'
+       +   img
+       + '</div>';
+}
+function cardActions(b){
+  return '<div class="actions">'
+       +   '<button class="act" data-edit="' + b.id + '" aria-label="Edit ' + escapeHTML(b.title) + '" title="Edit">' + ICON_EDIT + '</button>'
+       +   '<button class="act" data-del="' + b.id + '" aria-label="Delete ' + escapeHTML(b.title) + '" title="Delete">' + ICON_DEL + '</button>'
+       + '</div>';
+}
+function cardHTML(b){
+  return '<article class="card" data-id="' + b.id + '">'
+       +   coverInner(b)
+       +   cardActions(b)
+       +   '<div class="card-body">'
+       +     '<h3 class="title">' + escapeHTML(b.title) + '</h3>'
+       +     '<p class="author">' + escapeHTML(b.author || '\u00A0') + '</p>'
+       +     '<div class="meta">' + metaLine(b) + pill(b.status) + '</div>'
+       +   '</div>'
+       + '</article>';
+}
+function shelfCardHTML(b){
+  return '<article class="scard" data-id="' + b.id + '" tabindex="0">'
+       +   coverInner(b)
+       +   cardActions(b)
+       +   '<div class="scard-body"><h4 class="title">' + escapeHTML(b.title) + '</h4>'
+       +   '<p class="author">' + escapeHTML(b.author || '\u00A0') + '</p>' + pill(b.status) + '</div>'
+       + '</article>';
+}
+
+/* cover cascade: walk to the next candidate, then reveal the typographic cover */
+function advanceCover(img){
+  try {
+    var cands = JSON.parse(img.getAttribute('data-cands') || '[]');
+    var idx = parseInt(img.getAttribute('data-idx') || '0', 10) + 1;
+    if (idx < cands.length){ img.setAttribute('data-idx', idx); img.src = cands[idx]; }
+    else { img.onerror = null; img.remove(); } // exhausted: let the placeholder show
+  } catch (e){ img.onerror = null; img.remove(); }
+}
+window.advanceCover = advanceCover;
+
+function carouselOrder(){
+  var order = [], seen = {};
+  BOOKS.forEach(function(b){
+    parseCarousels(b.carousel).forEach(function(tag){
+      if (!seen[tag]){ seen[tag] = []; order.push(tag); }
+      seen[tag].push(b);
+    });
+  });
+  return { order: order, map: seen };
+}
+function renderCarousels(){
+  var section = $('#shelvesSection'), wrap = $('#shelves');
+  wrap.innerHTML = '';
+  if (QUERY){ section.hidden = true; return; }  // searching => hide browse shelves
+  var c = carouselOrder();
+  if (!c.order.length){ section.hidden = true; return; }
+  section.hidden = false;
+  c.order.forEach(function(tag){
+    var books = c.map[tag];
+    var shelf = el('section', 'shelf');
+    shelf.innerHTML = '<div class="shelf-head"><h2 class="eyebrow">' + escapeHTML(tag)
+      + '</h2><span class="shelf-count">' + books.length + '</span></div>';
+    var row = el('div', 'shelf-row');
+    row.setAttribute('tabindex', '0');
+    row.setAttribute('role', 'list');
+    row.setAttribute('aria-label', tag + ' shelf, ' + books.length + ' books');
+    row.innerHTML = books.map(shelfCardHTML).join('');
+    row.addEventListener('keydown', function(e){
+      if (e.key === 'ArrowRight'){ row.scrollBy({left:240,behavior:'smooth'}); e.preventDefault(); }
+      if (e.key === 'ArrowLeft'){ row.scrollBy({left:-240,behavior:'smooth'}); e.preventDefault(); }
+    });
+    shelf.appendChild(row);
+    wrap.appendChild(shelf);
+  });
+}
+function filteredBooks(){
+  var q = QUERY.trim().toLowerCase();
+  return BOOKS.filter(function(b){
+    if (FILTER !== 'all' && b.status !== FILTER) return false;
+    if (q){
+      var hay = (b.title + ' ' + b.author + ' ' + b.genre + ' ' + b.carousel).toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+}
+function renderGrid(){
+  var grid = $('#grid'), empty = $('#emptyState'), count = $('#gridCount');
+  var list = filteredBooks().slice().sort(function(a,b){ return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; });
+  count.textContent = list.length;
+  if (!list.length){
+    grid.innerHTML = '';
+    empty.hidden = false;
+    empty.innerHTML = BOOKS.length
+      ? 'No books match that. <button class="linklike" id="clearFilters">Clear filters</button>'
+      : 'Your shelf is empty. <button class="linklike" id="addFirst">Add a book</button> or use Import to paste a list.';
+    var cf = $('#clearFilters'); if (cf) cf.addEventListener('click', function(){ FILTER='all'; QUERY=''; $('#search').value=''; syncFilterPills(); render(); });
+    var af = $('#addFirst'); if (af) af.addEventListener('click', function(){ openBookModal(null); });
+    return;
+  }
+  empty.hidden = true;
+  grid.innerHTML = list.map(cardHTML).join('');
+}
+function render(){ renderCarousels(); renderGrid(); }
+
+/* ============================================================================
+   Filter pills + search
+   ========================================================================== */
+function syncFilterPills(){
+  document.querySelectorAll('#filters .fpill').forEach(function(btn){
+    var on = btn.getAttribute('data-filter') === FILTER;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+/* ============================================================================
+   Add / edit modal
+   ========================================================================== */
+function openBookModal(id){
+  EDIT_ID = id;
+  var m = $('#bookModal'), f = m.querySelector('form');
+  var b = id ? BOOKS.find(function(x){ return x.id === id; }) : null;
+  $('#modalTitle').textContent = b ? 'Edit book' : 'Add a book';
+  $('#saveBtn').textContent = b ? 'Save changes' : 'Add book';
+  $('#formError').hidden = true;
+  // fill fields by name (form.title is shadowed by HTMLElement.title — use elements[])
+  ['title','author','isbn','status','rating','started','finished','year_pub','genre','carousel','cover_override','notes']
+    .forEach(function(name){ f.elements[name].value = b ? (b[name] === undefined ? '' : b[name]) : (name === 'status' ? 'tbr' : ''); });
+  m.hidden = false;
+  setTimeout(function(){ f.elements['title'].focus(); }, 0);
+}
+function closeBookModal(){ $('#bookModal').hidden = true; EDIT_ID = null; }
+
+function saveBook(){
+  var f = $('#bookModal').querySelector('form');
+  var raw = {};
+  ['title','author','isbn','status','rating','started','finished','year_pub','genre','carousel','cover_override','notes']
+    .forEach(function(name){ raw[name] = f.elements[name].value; });
+  if (!raw.title.trim()){
+    var err = $('#formError'); err.textContent = 'A title is required.'; err.hidden = false;
+    f.elements['title'].focus(); return;
+  }
+  var book = normalizeBook(raw);
+  if (EDIT_ID){
+    book.id = EDIT_ID;
+    store.save(book).then(function(){
+      var i = BOOKS.findIndex(function(x){ return x.id === EDIT_ID; });
+      if (i !== -1) BOOKS[i] = book;
+      closeBookModal(); render(); toast('Saved');
+    });
+  } else {
+    HIGH_WATER += 1;
+    book.id = formatId(HIGH_WATER);
+    Promise.all([ store.save(book), setMeta(seqKey(), HIGH_WATER) ]).then(function(){
+      BOOKS.push(book);
+      closeBookModal(); render(); toast('Added “' + book.title + '”');
+    });
+  }
+}
+function deleteBook(id){
+  var b = BOOKS.find(function(x){ return x.id === id; });
+  if (!b) return;
+  if (!window.confirm('Delete “' + b.title + '”? This can\'t be undone.')) return;
+  store.remove(id).then(function(){
+    BOOKS = BOOKS.filter(function(x){ return x.id !== id; }); // id is retired, never reissued
+    render(); toast('Deleted “' + b.title + '”');
+  });
+}
+
+/* ============================================================================
+   Import / export
+   ========================================================================== */
+function openImportModal(){
+  IMPORT_RESULT = null;
+  $('#importText').value = '';
+  $('#importFile').value = '';
+  $('#importPreview').innerHTML = '';
+  $('#importAdd').disabled = true;
+  $('#importModal').hidden = false;
+  setTimeout(function(){ $('#importText').focus(); }, 0);
+}
+function closeImportModal(){ $('#importModal').hidden = true; IMPORT_RESULT = null; }
+
+function runImportPreview(){
+  var text = $('#importText').value;
+  if (!text.trim()){ $('#importPreview').innerHTML = '<p class="muted">Paste a list, or choose a file, then preview.</p>'; $('#importAdd').disabled = true; return; }
+  var res = importBooks(text, BOOKS, HIGH_WATER);
+  IMPORT_RESULT = res;
+  var rows = res.added.slice(0, 50).map(function(b){
+    return '<tr><td>' + escapeHTML(b.title) + '</td><td>' + escapeHTML(b.author) + '</td><td>' + escapeHTML(STATUS_LABEL[b.status]) + '</td></tr>';
+  }).join('');
+  var more = res.added.length > 50 ? '<p class="muted">…and ' + (res.added.length - 50) + ' more.</p>' : '';
+  var skip = res.skipped.length ? '<p class="muted">' + res.skipped.length + ' skipped (duplicates or no title).</p>' : '';
+  $('#importPreview').innerHTML = res.added.length
+    ? '<p class="muted">Detected <b>' + res.format + '</b> · adding <b>' + res.added.length + '</b> book' + (res.added.length===1?'':'s') + '.</p>'
+      + '<div class="ptable-wrap"><table class="ptable"><thead><tr><th>Title</th><th>Author</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + more + skip
+    : '<p class="muted">No new books found. ' + skip + '</p>';
+  $('#importAdd').disabled = res.added.length === 0;
+}
+function confirmImport(){
+  if (!IMPORT_RESULT || !IMPORT_RESULT.added.length) return;
+  var added = IMPORT_RESULT.added;
+  Promise.all(added.map(function(b){ return store.save(b); }))
+    .then(function(){ HIGH_WATER = IMPORT_RESULT.nextHighWater; return setMeta(seqKey(), HIGH_WATER); })
+    .then(function(){
+      added.forEach(function(b){ BOOKS.push(b); });
+      var skipped = IMPORT_RESULT.skipped.length;
+      closeImportModal(); render();
+      toast('Added ' + added.length + ' book' + (added.length===1?'':'s') + (skipped ? ' · ' + skipped + ' skipped' : ''));
+    });
+}
+function readImportFile(file){
+  if (!file) return;
+  if (/\.xlsx?$/i.test(file.name)){
+    $('#importPreview').innerHTML = '<p class="muted">Excel files aren\'t read directly here. Open it, copy the rows, and paste them above — tabs and commas both work.</p>';
+    return;
+  }
+  var fr = new FileReader();
+  fr.onload = function(){ $('#importText').value = fr.result; runImportPreview(); };
+  fr.readAsText(file);
+}
+
+function download(filename, text, type){
+  var blob = new Blob([text], { type: type || 'text/plain;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(url); }, 0);
+}
+function exportCSV(){ download('bucher.csv', toCSV(BOOKS), 'text/csv;charset=utf-8'); toast('Exported CSV'); }
+function exportJSON(){ download('bucher.json', JSON.stringify(BOOKS, null, 2), 'application/json'); toast('Exported JSON'); }
+
+/* ============================================================================
+   Demo reset / mode switch
+   ========================================================================== */
+function resetDemo(){
+  if (!window.confirm('Reset the sample shelf back to the original summer list?')) return;
+  IndexedDBAdapter('demo').replaceAll(SEED)
+    .then(function(){ return setMeta('seq:demo', maxIdNum(SEED.map(function(b){return b.id;}))); })
+    .then(function(){ location.reload(); });
+}
+function startOwn(){
+  setMeta('mode', 'app').then(function(){ location.reload(); });
+}
+
+/* ============================================================================
+   Toast
+   ========================================================================== */
+var _toastT = null;
+function toast(msg){
+  var t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(_toastT); _toastT = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+}
+
+/* ============================================================================
+   Events
+   ========================================================================== */
+function wireEvents(){
+  // filter pills
+  document.querySelectorAll('#filters .fpill').forEach(function(btn){
+    btn.addEventListener('click', function(){ FILTER = btn.getAttribute('data-filter'); syncFilterPills(); render(); });
+  });
+  syncFilterPills();
+  // search
+  $('#search').addEventListener('input', function(e){ QUERY = e.target.value; render(); });
+  // toolbar buttons
+  $('#addBtn').addEventListener('click', function(){ openBookModal(null); });
+  $('#importBtn').addEventListener('click', openImportModal);
+  $('#exportCsvBtn').addEventListener('click', exportCSV);
+  $('#exportJsonBtn').addEventListener('click', exportJSON);
+  $('#resetBtn').addEventListener('click', resetDemo);
+  $('#startOwnBtn').addEventListener('click', startOwn);
+  // edit/delete via delegation (cards + shelf cards)
+  document.addEventListener('click', function(e){
+    var ed = e.target.closest('[data-edit]'); if (ed){ openBookModal(ed.getAttribute('data-edit')); return; }
+    var dl = e.target.closest('[data-del]');  if (dl){ deleteBook(dl.getAttribute('data-del')); return; }
+  });
+  // book modal
+  $('#cancelBtn').addEventListener('click', closeBookModal);
+  $('#saveBtn').addEventListener('click', saveBook);
+  $('#bookModal').addEventListener('click', function(e){ if (e.target.id === 'bookModal') closeBookModal(); });
+  // import modal
+  $('#importText').addEventListener('input', runImportPreview);
+  $('#importFile').addEventListener('change', function(e){ readImportFile(e.target.files[0]); });
+  $('#importCancel').addEventListener('click', closeImportModal);
+  $('#importAdd').addEventListener('click', confirmImport);
+  $('#importModal').addEventListener('click', function(e){ if (e.target.id === 'importModal') closeImportModal(); });
+  // escape closes modals
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape'){ if (!$('#bookModal').hidden) closeBookModal(); if (!$('#importModal').hidden) closeImportModal(); }
+  });
+}
+
+/* SVG icons */
+var ICON_EDIT = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+var ICON_DEL  = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+
+document.addEventListener('DOMContentLoaded', boot);
+
+</script>
+</body>
+</html>
